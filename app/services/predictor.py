@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from models import model_loader
+from app.models import model_loader
 from app.schemas.phishing import PredictionOutput
 from app.db.crud import save_prediction
 from app.utils.url_features import extraer_features
