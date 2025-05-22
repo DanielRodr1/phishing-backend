@@ -13,3 +13,4 @@ whois
 bs4
 beautifulsoup4
 scipy
+xgboost
