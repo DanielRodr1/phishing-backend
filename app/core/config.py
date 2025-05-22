@@ -4,7 +4,7 @@ from functools import lru_cache
 class Settings(BaseSettings):
     MODEL_DIR: str = "models"
     ENVIRONMENT: str = "development"
-    MYSQL_HOST: str = "phishing-instance.clsuq60qwvj1.u-s-east-2.rds.amazonaws.com"
+    MYSQL_HOST: str = "phishing-instance.clsuq60qwvj1.us-east-2.rds.amazonaws.com"
     MYSQL_PORT: int = 3306
     MYSQL_USER: str = "root"
     MYSQL_PASSWORD: str = "sistemas"
