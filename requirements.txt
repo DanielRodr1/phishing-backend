@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+joblib
+scikit-learn
+python-dotenv
+pydantic
+sqlalchemy
+mysql-connector-python
+pydantic-settings
+requests
+numpy
+whois
+bs4
+beautifulsoup4
+scipy
