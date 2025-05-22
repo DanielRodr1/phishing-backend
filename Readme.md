@@ -50,7 +50,7 @@ ENVIRONMENT=development
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
 MYSQL_USER=root
-MYSQL_PASSWORD=tu_contraseña
+MYSQL_PASSWORD=*******
 MYSQL_DB=phishing_db
 ```
 
