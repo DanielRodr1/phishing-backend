@@ -2,16 +2,21 @@ import os
 import joblib
 from app.core.config import settings
 
+def get_model_path(filename: str) -> str:
+    """
+    Retorna la ruta absoluta del archivo de modelo.
+    """
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # /app/
+    model_dir = os.path.join(base_dir, settings.MODEL_DIR)
+    full_path = os.path.join(model_dir, filename)
+
+    print("📦 Intentando cargar:", full_path)  # Esto aparecerá en Railway Logs
+    return full_path
+
 def load_text_model():
-    # Ruta del archivo actual (app/models/model_loader.py)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Ruta absoluta real hacia la carpeta /models (fuera de /app)
-    model_dir = os.path.abspath(os.path.join(current_dir, "../../models"))
-
-    vectorizer_path = os.path.join(model_dir, "tfidf_body.pkl")
-    model_path = os.path.join(model_dir, "model_body.pkl")
-    scaler_path = os.path.join(model_dir, "scaler.pkl")
+    vectorizer_path = get_model_path("tfidf_body.pkl")
+    model_path = get_model_path("model_body.pkl")
+    scaler_path = get_model_path("scaler.pkl")
 
     vectorizer = joblib.load(vectorizer_path)
     model = joblib.load(model_path)
@@ -20,8 +25,6 @@ def load_text_model():
     return vectorizer, model, scaler
 
 def load_url_model():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    model_dir = os.path.abspath(os.path.join(current_dir, "../../models"))
-
-    model_path = os.path.join(model_dir, "classifier_url.pkl")
-    return None, joblib.load(model_path)
+    model_path = get_model_path("classifier_url.pkl")
+    model = joblib.load(model_path)
+    return None, model
