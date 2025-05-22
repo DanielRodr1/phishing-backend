@@ -3,14 +3,12 @@ import joblib
 from app.core.config import settings
 
 def get_model_path(filename: str) -> str:
-    """
-    Retorna la ruta absoluta del archivo de modelo.
-    """
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # /app/
-    model_dir = os.path.join(base_dir, settings.MODEL_DIR)
-    full_path = os.path.join(model_dir, filename)
+    # Obtiene el path absoluto a /app/models (fuera de /app/app/)
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+    model_dir = os.path.join(project_root, settings.MODEL_DIR)
 
-    print("📦 Intentando cargar:", full_path)  # Esto aparecerá en Railway Logs
+    full_path = os.path.join(model_dir, filename)
+    print("📦 Cargando modelo desde:", full_path)
     return full_path
 
 def load_text_model():
