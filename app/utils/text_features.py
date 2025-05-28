@@ -8,6 +8,5 @@ def extraer_features_texto(text: str, vectorizer, scaler):
     from scipy.sparse import csr_matrix, hstack
     X_final = hstack([X_tfidf, csr_matrix(length_scaled)])
 
-    print("📦 INPUT GENERADO en backend:", X_final.shape)
 
     return X_final

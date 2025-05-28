@@ -11,7 +11,7 @@ text_vectorizer, text_model, text_scaler = model_loader.load_text_model()
 url_model = model_loader.load_url_model()[1]  # solo modelo, no vectorizador
 
 def predict_text_from_input(text: str, db: Session = None) -> PredictionOutput:
-    print("✅ EJECUTANDO predict_text_from_input()")
+    print("execute predict_text_from_input()")
 
     if db:
         existing = db.query(PhishingLog).filter_by(input_type="text", content=text).first()
@@ -24,7 +24,7 @@ def predict_text_from_input(text: str, db: Session = None) -> PredictionOutput:
 
     # Extraer features desde función utilitaria
     X_final = extraer_features_texto(text, text_vectorizer, text_scaler)
-    print("✅ PREDICIENDO con shape:", X_final.shape)
+    print("shape:", X_final.shape)
 
     prediction = text_model.predict(X_final)[0]
     proba = text_model.predict_proba(X_final)[0][int(prediction)]
