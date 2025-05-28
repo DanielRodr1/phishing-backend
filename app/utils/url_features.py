@@ -107,14 +107,14 @@ def extraer_features(url: str) -> np.ndarray:
     ext_links = [a for a in links if a['href'].startswith(("http://", "https://")) and hostname not in a['href']]
     features['ratio_extHyperlinks'] = len(ext_links) / len(links) if links else 0
 
-    time.sleep(5)  # evitar bloqueo por exceso de requests
+    time.sleep(10)  # evitar bloqueo por exceso de requests
 
     # Añadir esta lista al inicio o final del archivo
     orden_columnas = [
-        'google_index', 'page_rank', 'domain_age', 'nb_hyperlinks', 'nb_qm', 'domain_in_title',
-        'nb_eq', 'length_hostname', 'longest_word_path', 'tld_in_subdomain', 'ratio_digits_host',
-        'nb_www', 'ip', 'shortest_word_host', 'ratio_digits_url', 'nb_slash', 'length_url',
-        'longest_words_raw', 'prefix_suffix', 'nb_dots', 'phish_hints', 'ratio_extHyperlinks'
+        'domain_age', 'google_index', 'nb_hyperlinks', 'page_rank', 'nb_dots', 'phish_hints', 'ip', 'nb_slash',
+        'shortest_word_host', 'length_url', 'longest_word_path', 'length_hostname', 'nb_qm', 'prefix_suffix',
+        'tld_in_subdomain', 'longest_words_raw', 'domain_in_title', 'nb_www', 'ratio_digits_host', 'ratio_digits_url',
+        'nb_eq', 'ratio_extHyperlinks'
     ]
 
     # Al final de la función extraer_features(url):
