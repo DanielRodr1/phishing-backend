@@ -1,5 +1,16 @@
+from urllib.parse import urlparse
+from datetime import datetime
+import pandas as pd
 import re
+import whois
 import time
+import requests
+import os
+from tqdm import tqdm
+from scipy.stats import entropy
+from bs4 import BeautifulSoup
+from itertools import groupby
+
 import requests
 import numpy as np
 from urllib.parse import urlparse
@@ -25,30 +36,26 @@ def obtener_google_index(url):
         dominio = parsed.hostname
         if dominio is None:
             return 0
-        headers = {"API-Key": "01969e7f-04c8-744a-8245-79c2573fe845"}  # ← reemplaza si usas API real
+        headers = {"API-Key": "01969e7f-04c8-744a-8245-79c2573fe845"}
         params = {"q": f"domain:{dominio}", "size": 1}
-        response = requests.get("https://urlscan.io/api/v1/search/", params=params, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            return int(data.get("total", 0) > 0)
-        return 0
+        response = requests.get("https://urlscan.io/api/v1/search/", params=params, headers=headers, timeout=3)
+        return int(response.status_code == 200 and response.json().get("total", 0) > 0)
     except:
         return 0
 
-def obtener_page_rank(dominio):
+def obtener_page_rank(dominio, api_key="088o008o0gsgcw8k0444k8wswo84888cc0ck8kg4"):
     try:
         url = "https://openpagerank.com/api/v1.0/getPageRank"
-        headers = {"API-OPR": "088o008o0gsgcw8k0444k8wswo84888cc0ck8kg4"}  # ← reemplaza si usas API real
+        headers = {"API-OPR": api_key}
         params = {"domains[]": dominio}
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=params, timeout=3)
         if response.status_code == 200:
-            data = response.json()
-            return data['response'][0].get("page_rank_integer", -1)
+            return response.json()['response'][0].get("page_rank_integer", -1)
         return -1
     except:
         return -1
 
-def extraer_features(url: str) -> np.ndarray:
+def extraer_features(url):
     if not url.startswith(("http://", "https://")):
         url = "http://" + url
 
@@ -56,7 +63,7 @@ def extraer_features(url: str) -> np.ndarray:
     hostname = parsed.hostname or ''
     path = parsed.path or ''
 
-    features = dict()
+    features = {}
     features['longest_words_raw'] = max([len(word) for word in re.split(r'\W+', url)]) if url else 0
     features['nb_eq'] = url.count('=')
     features['length_hostname'] = len(hostname)
@@ -75,11 +82,11 @@ def extraer_features(url: str) -> np.ndarray:
     features['nb_slash'] = url.count('/')
     path_words = re.split(r'\W+', path)
     features['longest_word_path'] = max([len(word) for word in path_words]) if path_words else 0
-    hints = ['secure', 'account', 'update', 'login', 'verify', 'bank', 'confirm']
-    features['phish_hints'] = sum(hint in url.lower() for hint in hints)
+    features['phish_hints'] = sum(hint in url.lower() for hint in ['secure', 'account', 'update', 'login', 'verify', 'bank', 'confirm'])
     features['nb_dots'] = url.count('.')
     host_words = hostname.split('.') if hostname else []
     features['shortest_word_host'] = min([len(w) for w in host_words]) if host_words else 0
+
     features['google_index'] = obtener_google_index(url)
     tld = obtener_tld(hostname)
     subdomain = hostname.split('.')[0] if hostname else ''
@@ -94,6 +101,7 @@ def extraer_features(url: str) -> np.ndarray:
     features['nb_www'] = url.lower().count('www')
     features['page_rank'] = obtener_page_rank(hostname)
 
+    # HTML features
     try:
         response = requests.get(url, timeout=5)
         soup = BeautifulSoup(response.content, "html.parser")
@@ -102,19 +110,53 @@ def extraer_features(url: str) -> np.ndarray:
 
     title = soup.title.string.strip().lower() if soup.title and soup.title.string else ""
     features['domain_in_title'] = int(hostname in title)
+
     links = soup.find_all("a", href=True)
     features['nb_hyperlinks'] = len(links)
+
     ext_links = [a for a in links if a['href'].startswith(("http://", "https://")) and hostname not in a['href']]
     features['ratio_extHyperlinks'] = len(ext_links) / len(links) if links else 0
+    features['safe_anchor'] = sum(1 for a in links if a['href'].strip() == '#') / len(links) if links else 0
 
-    time.sleep(10)  # evitar bloqueo por exceso de requests
+    tags_with_links = soup.find_all(['script', 'meta', 'link'])
+    features['links_in_tags'] = sum('href' in tag.attrs or 'src' in tag.attrs for tag in tags_with_links)
+
+    redir_meta = soup.find_all("meta", attrs={"http-equiv": "refresh"})
+    features['ratio_extRedirection'] = len(redir_meta) / (len(links) + 1)
+
+    error_links = [tag for tag in soup.find_all(["img", "script"]) if tag.get("src", "").startswith("http") and "404" in tag.get("src", "")]
+    features['ratio_extErrors'] = len(error_links) / (len(links) + 1)
+
+    features['avg_word_path'] = sum(len(w) for w in path_words) / len(path_words) if path_words else 0
+    features['avg_word_host'] = sum(len(w) for w in host_words) / len(host_words) if host_words else 0
+    features['char_repeat'] = max((len(list(g)) for _, g in groupby(url)), default=0)
+
+    features['iframe'] = int(bool(soup.find("iframe")))
+    forms = soup.find_all("form")
+    features['login_form'] = int(any('password' in str(f).lower() for f in forms))
+
+    # empty_title
+    features['empty_title'] = int(title == '')
+
+    # ratio_intHyperlinks: enlaces internos
+    int_links = [a for a in links if hostname in a['href']]
+    features['ratio_intHyperlinks'] = len(int_links) / len(links) if links else 0
+
+    # web_traffic: valor simulado o real
+    try:
+        alexa_response = requests.get(f"https://data.alexa.com/data?cli=10&url={hostname}", timeout=3)
+        features['web_traffic'] = int("REACH" in alexa_response.text)
+    except:
+        features['web_traffic'] = 0
 
     # Añadir esta lista al inicio o final del archivo
     orden_columnas = [
-        'domain_age', 'google_index', 'nb_hyperlinks', 'page_rank', 'nb_dots', 'phish_hints', 'ip', 'nb_slash',
-        'shortest_word_host', 'length_url', 'longest_word_path', 'length_hostname', 'nb_qm', 'prefix_suffix',
-        'tld_in_subdomain', 'longest_words_raw', 'domain_in_title', 'nb_www', 'ratio_digits_host', 'ratio_digits_url',
-        'nb_eq', 'ratio_extHyperlinks'
+        'iframe','domain_age','longest_words_raw','nb_hyperlinks','links_in_tags','tld_in_subdomain',
+        'ratio_digits_url','ratio_extRedirection','char_repeat','nb_dots','ratio_extErrors',
+        'ratio_extHyperlinks','nb_eq','length_url','google_index','ip','domain_in_title',
+        'ratio_digits_host','phish_hints','page_rank','length_hostname','login_form','longest_word_path',
+        'avg_word_path','nb_slash','empty_title','ratio_intHyperlinks','safe_anchor','avg_word_host',
+        'web_traffic','nb_www','shortest_word_host','nb_qm','prefix_suffix'
     ]
 
     # Al final de la función extraer_features(url):
