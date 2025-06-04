@@ -2,13 +2,12 @@ from sqlalchemy.orm import Session
 from app.models import model_loader
 from app.schemas.phishing import PredictionOutput
 from app.db.crud import save_prediction
-from app.utils.language import detect_language  # nuevo
+from app.utils.language import detect_language
 from app.utils.url_features import extraer_features
 from app.utils.text_features import extraer_features_texto
 from app.db.models import PhishingLog
 
 # Cargar los modelos desde los archivos .pkl
-text_vectorizer, text_model, text_scaler = model_loader.load_text_model()
 url_model = model_loader.load_url_model()[1]  # solo modelo, no vectorizador
 
 def predict_text_from_input(text: str, db: Session = None) -> PredictionOutput:
