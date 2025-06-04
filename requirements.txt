@@ -1,6 +1,4 @@
-fastapi~=0.115.12
 uvicorn
-joblib~=1.5.0
 scikit-learn
 python-dotenv
 pydantic~=2.11.4
@@ -14,5 +12,10 @@ bs4~=0.0.2
 beautifulsoup4~=4.13.4
 scipy~=1.15.3
 xgboost
-langdetect~=1.0.9
 pandas
+langdetect
+joblib
+fastapi
+uvicorn
+sqlalchemy
+tqdm
