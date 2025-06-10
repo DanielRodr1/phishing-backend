@@ -195,5 +195,9 @@ def extraer_features(url):
         'nb_dots'
     ]
 
+    for key in orden_columnas:
+        if key not in features:
+            features[key] = 0
+
     # Al final de la función extraer_features(url):
     return np.array([features[k] for k in orden_columnas])
