@@ -19,7 +19,14 @@ from bs4 import BeautifulSoup
 import whois
 from scipy.stats import entropy
 
-# Funciones auxiliares
+def resolver_redireccion(url):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        response = requests.get(url, timeout=8, allow_redirects=True, headers=headers)
+        return response.url
+    except:
+        return url
+
 def contar_digitos(texto):
     return sum(c.isdigit() for c in texto)
 
@@ -59,11 +66,15 @@ def extraer_features(url):
     if not url.startswith(("http://", "https://")):
         url = "http://" + url
 
+    # Resolver redirección: muy importante para analizar la URL final real
+    url = resolver_redireccion(url)
+
     parsed = urlparse(url)
     hostname = parsed.hostname or ''
     path = parsed.path or ''
 
     features = {}
+
     features['longest_words_raw'] = max([len(word) for word in re.split(r'\W+', url)]) if url else 0
     features['nb_eq'] = url.count('=')
     features['length_hostname'] = len(hostname)
@@ -76,8 +87,10 @@ def extraer_features(url):
         if isinstance(creation_date, list):
             creation_date = creation_date[0]
         features['domain_age'] = (datetime.now() - creation_date).days if isinstance(creation_date, datetime) else 0
+        features['whois_registered_domain'] = int(info.domain_name is not None)
     except:
         features['domain_age'] = 0
+        features['whois_registered_domain'] = 0
 
     features['nb_slash'] = url.count('/')
     path_words = re.split(r'\W+', path)
@@ -100,6 +113,12 @@ def extraer_features(url):
     features['ratio_digits_host'] = digits_host / len(hostname) if len(hostname) > 0 else 0
     features['nb_www'] = url.lower().count('www')
     features['page_rank'] = obtener_page_rank(hostname)
+    features['nb_semicolumn'] = url.count(';')
+
+    tlds_sospechosos = ['.zip', '.review', '.country', '.stream', '.biz', '.tk', '.ml', '.ga', '.cf']
+    features['suspecious_tld'] = int(any(tld in hostname for tld in tlds_sospechosos))
+
+    features['abnormal_subdomain'] = int(len(hostname.split('.')) > 3)
 
     # HTML features
     try:
@@ -110,12 +129,20 @@ def extraer_features(url):
 
     title = soup.title.string.strip().lower() if soup.title and soup.title.string else ""
     features['domain_in_title'] = int(hostname in title)
+    features['empty_title'] = int(title == '')
+    features['domain_with_copyright'] = int('copyright' in soup.get_text().lower())
+
+    forms = soup.find_all("form")
+    features['login_form'] = int(any('password' in str(f).lower() for f in forms))
+    features['submit_email'] = int(any('mailto:' in (f.get("action") or '').lower() for f in forms))
+    features['sfh'] = int(any((f.get("action") in ['', '#', 'about:blank']) for f in forms))
 
     links = soup.find_all("a", href=True)
     features['nb_hyperlinks'] = len(links)
-
     ext_links = [a for a in links if a['href'].startswith(("http://", "https://")) and hostname not in a['href']]
+    int_links = [a for a in links if hostname in a['href']]
     features['ratio_extHyperlinks'] = len(ext_links) / len(links) if links else 0
+    features['ratio_intHyperlinks'] = len(int_links) / len(links) if links else 0
     features['safe_anchor'] = sum(1 for a in links if a['href'].strip() == '#') / len(links) if links else 0
 
     tags_with_links = soup.find_all(['script', 'meta', 'link'])
@@ -127,22 +154,28 @@ def extraer_features(url):
     error_links = [tag for tag in soup.find_all(["img", "script"]) if tag.get("src", "").startswith("http") and "404" in tag.get("src", "")]
     features['ratio_extErrors'] = len(error_links) / (len(links) + 1)
 
+    styles = soup.find_all("link", rel="stylesheet")
+    features['nb_extCSS'] = sum(1 for s in styles if s.get("href") and hostname not in s['href'])
+
+    favicon = soup.find("link", rel=lambda x: x and "icon" in x.lower())
+    favicon_href = favicon.get("href") if favicon else None
+    features['external_favicon'] = int(favicon_href is not None and hostname not in favicon_href)
+
+    scripts = soup.find_all("script")
+    features['popup_window_size'] = int(any("window.open" in s.get_text() and ("width=" in s.get_text() or "height=" in s.get_text()) for s in scripts))
+    features['right_clic'] = int(any("event.button==2" in s.get_text() or "contextmenu" in s.get_text() for s in scripts))
+    features['onmouseover'] = int(any("onmouseover" in s.get_text().lower() for s in scripts))
+
     features['avg_word_path'] = sum(len(w) for w in path_words) / len(path_words) if path_words else 0
     features['avg_word_host'] = sum(len(w) for w in host_words) / len(host_words) if host_words else 0
     features['char_repeat'] = max((len(list(g)) for _, g in groupby(url)), default=0)
 
     features['iframe'] = int(bool(soup.find("iframe")))
-    forms = soup.find_all("form")
-    features['login_form'] = int(any('password' in str(f).lower() for f in forms))
 
-    # empty_title
-    features['empty_title'] = int(title == '')
+    features['brand_in_subdomain'] = int(any(brand in subdomain for brand in ['paypal', 'bank', 'login', 'secure']))
+    features['brand_in_path'] = int(any(brand in path for brand in ['paypal', 'bank', 'login', 'secure']))
+    features['domain_in_brand'] = int(hostname in path)
 
-    # ratio_intHyperlinks: enlaces internos
-    int_links = [a for a in links if hostname in a['href']]
-    features['ratio_intHyperlinks'] = len(int_links) / len(links) if links else 0
-
-    # web_traffic: valor simulado o real
     try:
         alexa_response = requests.get(f"https://data.alexa.com/data?cli=10&url={hostname}", timeout=3)
         features['web_traffic'] = int("REACH" in alexa_response.text)
@@ -151,12 +184,15 @@ def extraer_features(url):
 
     # Añadir esta lista al inicio o final del archivo
     orden_columnas = [
-        'iframe','domain_age','longest_words_raw','nb_hyperlinks','links_in_tags','tld_in_subdomain',
-        'ratio_digits_url','ratio_extRedirection','char_repeat','nb_dots','ratio_extErrors',
-        'ratio_extHyperlinks','nb_eq','length_url','google_index','ip','domain_in_title',
-        'ratio_digits_host','phish_hints','page_rank','length_hostname','login_form','longest_word_path',
-        'avg_word_path','nb_slash','empty_title','ratio_intHyperlinks','safe_anchor','avg_word_host',
-        'web_traffic','nb_www','shortest_word_host','nb_qm','prefix_suffix'
+        'page_rank', 'abnormal_subdomain', 'ratio_extErrors', 'empty_title', 'domain_in_title',
+        'login_form', 'domain_with_copyright', 'links_in_tags', 'avg_word_host', 'onmouseover',
+        'tld_in_subdomain', 'safe_anchor', 'nb_slash', 'iframe', 'google_index', 'ip',
+        'ratio_digits_host', 'avg_word_path', 'length_hostname', 'nb_eq', 'ratio_extRedirection',
+        'prefix_suffix', 'nb_www', 'phish_hints', 'nb_extCSS', 'nb_hyperlinks', 'suspecious_tld',
+        'domain_in_brand', 'shortest_word_host', 'web_traffic', 'ratio_digits_url',
+        'longest_word_path', 'longest_words_raw', 'external_favicon', 'right_clic', 'domain_age',
+        'length_url', 'ratio_intHyperlinks', 'ratio_extHyperlinks', 'nb_qm', 'char_repeat',
+        'nb_dots'
     ]
 
     # Al final de la función extraer_features(url):
