@@ -184,15 +184,13 @@ def extraer_features(url):
 
     # Añadir esta lista al inicio o final del archivo
     orden_columnas = [
-        'page_rank', 'abnormal_subdomain', 'ratio_extErrors', 'empty_title', 'domain_in_title',
-        'login_form', 'domain_with_copyright', 'links_in_tags', 'avg_word_host', 'onmouseover',
-        'tld_in_subdomain', 'safe_anchor', 'nb_slash', 'iframe', 'google_index', 'ip',
-        'ratio_digits_host', 'avg_word_path', 'length_hostname', 'nb_eq', 'ratio_extRedirection',
-        'prefix_suffix', 'nb_www', 'phish_hints', 'nb_extCSS', 'nb_hyperlinks', 'suspecious_tld',
-        'domain_in_brand', 'shortest_word_host', 'web_traffic', 'ratio_digits_url',
-        'longest_word_path', 'longest_words_raw', 'external_favicon', 'right_clic', 'domain_age',
-        'length_url', 'ratio_intHyperlinks', 'ratio_extHyperlinks', 'nb_qm', 'char_repeat',
-        'nb_dots'
+        'abnormal_subdomain', 'longest_word_path', 'domain_in_title', 'web_traffic', 'google_index', 'char_repeat',
+        'length_url', 'domain_age', 'nb_www', 'ratio_intHyperlinks', 'nb_extCSS', 'nb_eq', 'longest_words_raw',
+        'domain_in_brand', 'tld_in_subdomain', 'length_hostname', 'links_in_tags', 'nb_dots', 'avg_word_host',
+        'avg_word_path', 'domain_with_copyright', 'ratio_extErrors', 'nb_hyperlinks', 'empty_title', 'page_rank',
+        'phish_hints', 'login_form', 'right_clic', 'safe_anchor', 'nb_slash', 'ip', 'external_favicon', 'prefix_suffix',
+        'ratio_extHyperlinks', 'onmouseover', 'suspecious_tld', 'nb_qm', 'shortest_word_host', 'iframe', 'ratio_digits_url',
+        'ratio_digits_host', 'ratio_extRedirection'
     ]
 
     for key in orden_columnas:
