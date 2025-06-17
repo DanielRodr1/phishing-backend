@@ -10,4 +10,9 @@ class PhishingLog(Base):
     content = Column(String(10000), nullable=False)
     is_phishing = Column(String(5), nullable=False)  # 'True' o 'False'
     confidence = Column(Float, nullable=False)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Nuevas columnas para los tiempos
+    request_time = Column(DateTime(timezone=True), nullable=False,
+                          server_default=func.now())  # Hora en la que se recibe la consulta
+    response_time = Column(DateTime(timezone=True), nullable=False,
+                           server_default=func.now())  # Hora en la que se da la respuesta

@@ -40,6 +40,7 @@ Analiza una URL sospechosa y determina si puede tratarse de una página web frau
 )
 def predict_url(input_data: UrlInput, db: Session = Depends(get_db)):
     try:
-        return predict_url_from_input(input_data.url, db)
+        output: PredictionOutput = predict_url_from_input(input_data.url, db)
+        return output
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al predecir URL: {str(e)}")
